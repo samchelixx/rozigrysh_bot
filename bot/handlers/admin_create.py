@@ -1,4 +1,4 @@
-from aiogram import Router, F, types
+from aiogram import Router, F, types, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -55,7 +55,7 @@ async def cmd_cancel(message: types.Message, state: FSMContext):
     await message.answer("❌ Действие отменено.", reply_markup=main_admin_keyboard())
 
 @router.message(GiveawayCreation.waiting_for_channels)
-async def process_channels(message: types.Message, state: FSMContext, bot: types.Bot):
+async def process_channels(message: types.Message, state: FSMContext, bot: Bot):
     raw_channels = [c.strip() for c in message.text.replace(',', ' ').split()]
     valid_channels = []
     failed_channels = []
@@ -111,7 +111,7 @@ async def process_button_text(message: types.Message, state: FSMContext):
     await message.answer("📢 Выбери канал для публикации (или введи ID вручную):", reply_markup=kb)
 
 @router.message(GiveawayCreation.waiting_for_publish_channel)
-async def process_publish_channel(message: types.Message, state: FSMContext, bot: types.Bot):
+async def process_publish_channel(message: types.Message, state: FSMContext, bot: Bot):
     channel_input = message.text
     
     # Extract ID if selected from menu: "Title (ID: -123)"
@@ -165,7 +165,7 @@ async def process_publish_channel(message: types.Message, state: FSMContext, bot
 # `publish_giveaway` needs to be kept but updated to default button text.
 
 @router.callback_query(GiveawayCreation.waiting_for_confirmation, F.data == "publish_giveaway")
-async def publish_giveaway(callback: types.CallbackQuery, state: FSMContext, bot: types.Bot):
+async def publish_giveaway(callback: types.CallbackQuery, state: FSMContext, bot: Bot):
     data = await state.get_data()
     
     # Save to DB

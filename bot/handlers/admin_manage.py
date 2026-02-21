@@ -1,5 +1,5 @@
 
-from aiogram import Router, F, types
+from aiogram import Router, F, types, Bot
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -140,7 +140,7 @@ async def pick_specific_winner(callback: types.CallbackQuery):
     await show_participants_menu(callback)
 
 @router.callback_query(F.data.startswith("pick_random_"))
-async def pick_random_winner(callback: types.CallbackQuery, bot: types.Bot):
+async def pick_random_winner(callback: types.CallbackQuery, bot: Bot):
     gw_id = int(callback.data.split("_")[2])
     # db.get_participants returns list of user Row objects (u.*)
     participants = await db.get_participants(gw_id)
@@ -198,7 +198,7 @@ async def pick_random_winner(callback: types.CallbackQuery, bot: types.Bot):
     await show_participants_menu(callback)
 
 @router.callback_query(F.data.startswith("finish_gw_"))
-async def finish_giveaway_publish(callback: types.CallbackQuery, bot: types.Bot):
+async def finish_giveaway_publish(callback: types.CallbackQuery, bot: Bot):
     gw_id = int(callback.data.split("_")[2])
     winners = await db.get_winners(gw_id)
     
@@ -284,7 +284,7 @@ async def edit_desc_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 @router.message(EditGiveaway.waiting_for_new_desc)
-async def edit_desc_save(message: types.Message, state: FSMContext, bot: types.Bot):
+async def edit_desc_save(message: types.Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     gw_id = data.get('edit_gw_id')
     
@@ -349,7 +349,7 @@ async def edit_desc_save(message: types.Message, state: FSMContext, bot: types.B
     await message.answer(msg, reply_markup=main_admin_keyboard())
 
 @router.message(F.text, F.state == "waiting_for_winner_username")
-async def pick_manual_finish(message: types.Message, state: FSMContext, bot: types.Bot):
+async def pick_manual_finish(message: types.Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     giveaway_id = data['picking_giveaway_id']
     
@@ -394,7 +394,7 @@ async def pick_manual_finish(message: types.Message, state: FSMContext, bot: typ
 
 
 @router.callback_query(F.data.startswith("publish_results_"))
-async def publish_results(callback: types.CallbackQuery, bot: types.Bot):
+async def publish_results(callback: types.CallbackQuery, bot: Bot):
     try:
         print(f"DEBUG: publish_results called for {callback.data}")
         giveaway_id = int(callback.data.split("_")[2])
