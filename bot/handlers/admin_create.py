@@ -211,8 +211,26 @@ async def publish_giveaway(callback: types.CallbackQuery, state: FSMContext, bot
         
         await db.set_publish_message_id(giveaway_id, msg.message_id)
         
+        # Add a share button so users can share the post (since Telegram removes buttons on forward)
+        try:
+            chat = await bot.get_chat(data['publish_channel_id'])
+            if chat.username:
+                post_url = f"https://t.me/{chat.username}/{msg.message_id}"
+            else:
+                post_url = f"https://t.me/c/{str(chat.id)[4:]}/{msg.message_id}"
+                
+            share_url = f"https://t.me/share/url?url={post_url}&text=Участвуй в конкурсе! 🎁"
+            
+            kb_with_share = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=data.get('button_text', "Участвую"), callback_data=f"participate_{giveaway_id}")],
+                [InlineKeyboardButton(text="🔗 Поделиться", url=share_url)]
+            ])
+            await bot.edit_message_reply_markup(chat_id=data['publish_channel_id'], message_id=msg.message_id, reply_markup=kb_with_share)
+        except Exception as e:
+            print(f"Failed to add share button: {e}")
+        
         await callback.message.edit_reply_markup(reply_markup=None) 
-        await callback.message.answer(f"✅ Розыгрыш #{giveaway_id} опубликован!", reply_markup=main_admin_keyboard())
+        await callback.message.answer(f"✅ Розыгрыш #{giveaway_id} опубликован!\n(Добавлена кнопка 'Поделиться' для удобного репоста)", reply_markup=main_admin_keyboard())
     except Exception as e:
         await callback.message.answer(f"⚠️ Ошибка публикации: {e}", reply_markup=main_admin_keyboard())
 

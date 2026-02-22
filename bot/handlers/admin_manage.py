@@ -315,10 +315,22 @@ async def edit_desc_save(message: types.Message, state: FSMContext, bot: Bot):
             channels_text = "\n\n📢 <b>Подпишись на:</b>\n" + "\n".join(lines)
             final_text = new_text + channels_text
             
-            # Reconstruct KB
-            kb = InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text=gw['button_text'], callback_data=f"participate_{gw_id}")
-            ]])
+            # Reconstruct KB with the share button
+            try:
+                chat = await bot.get_chat(gw['publish_channel_id'])
+                if chat.username:
+                    post_url = f"https://t.me/{chat.username}/{gw['publish_message_id']}"
+                else:
+                    post_url = f"https://t.me/c/{str(chat.id)[4:]}/{gw['publish_message_id']}"
+                share_url = f"https://t.me/share/url?url={post_url}&text=Участвуй в конкурсе! 🎁"
+                kb = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text=gw['button_text'], callback_data=f"participate_{gw_id}")],
+                    [InlineKeyboardButton(text="🔗 Поделиться", url=share_url)]
+                ])
+            except Exception:
+                kb = InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text=gw['button_text'], callback_data=f"participate_{gw_id}")
+                ]])
             
             await bot.edit_message_caption(
                 chat_id=gw['publish_channel_id'], 
