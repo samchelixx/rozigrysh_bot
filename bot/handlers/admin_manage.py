@@ -431,20 +431,21 @@ async def publish_results(callback: types.CallbackQuery, bot: Bot):
                     f"{winners_text}\n\n"
                     f"Поздравляем! 🥳"
                 )
-                await bot.send_message(chat_id=giveaway['publish_channel_id'], text=result_text)
+                bot_info = await bot.me()
+                bot_username = bot_info.username
+                url = f"https://t.me/{bot_username}?start=result_{giveaway_id}"
+                
+                kb_results = InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text="🏆 Проверить результаты", url=url)
+                ]])
+                
+                await bot.send_message(chat_id=giveaway['publish_channel_id'], text=result_text, reply_markup=kb_results)
                 print(f"DEBUG: Results posted to {giveaway['publish_channel_id']}")
                 
                 # Remove button from original post and replace with Results button
                 if giveaway['publish_message_id']:
                     try:
                         print(f"DEBUG: Replacing button for msg {giveaway['publish_message_id']}")
-                        bot_info = await bot.me()
-                        bot_username = bot_info.username
-                        url = f"https://t.me/{bot_username}?start=result_{giveaway_id}"
-                        
-                        kb_results = InlineKeyboardMarkup(inline_keyboard=[[
-                            InlineKeyboardButton(text="🏆 Проверить результаты", url=url)
-                        ]])
                         await bot.edit_message_reply_markup(
                             chat_id=giveaway['publish_channel_id'], 
                             message_id=giveaway['publish_message_id'], 
