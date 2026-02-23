@@ -68,9 +68,8 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
             await callback.answer("⏳ Розыгрыш уже завершен или не найден.", show_alert=True)
             return
 
-        # Visual delay for participation
-        await callback.answer("⏳ Проверяем выполнение условий...", show_alert=False)
-        await asyncio.sleep(1.5) # Simulated delay
+        # Visual delay for participation (simulated thinking without answering the callback yet)
+        await asyncio.sleep(1.0) 
 
         # Check subscriptions
         channels = giveaway['channel_ids'].split(',')
@@ -99,7 +98,7 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
                     else:
                          text += f"👉 {chat.title}\n"
                 except:
-                    text += f"👉 Канал\n"
+                    text += f"👉 {ch}\n"
                     
             text += "\nПодпишитесь и нажмите кнопку снова!"
             await callback.answer(text, show_alert=True)
@@ -151,11 +150,12 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
             await callback.answer("😎 Проверка пройдена! Ты уже числишься в списках этого розыгрыша.", show_alert=True)
             
     except Exception as e:
-        print(f"ERROR in participate: {e}")
+        import traceback
+        print(f"ERROR in participate:\n{traceback.format_exc()}")
         try:
              await callback.answer("❌ Произошла ошибка. Скажи админу проверить консоль.", show_alert=True)
-        except:
-             pass
+        except Exception as e2:
+             print(f"Failed to send error alert: {e2}")
 
 @router.callback_query(F.data.startswith("check_results_"))
 async def check_results(callback: types.CallbackQuery):
