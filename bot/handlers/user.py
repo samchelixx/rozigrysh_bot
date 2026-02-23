@@ -112,47 +112,6 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
         if is_new_participant:
             await callback.answer("✅ Условия выполнены! Ты участвуешь в розыгрыше. 🍀", show_alert=True)
             
-            # --- Update Participant Count on Button ---
-            try:
-                count = await db.get_participants_count(giveaway_id)
-                # Keep the original button text base but append the count
-                # sqlite3.Row does not support .get(), so access keys safely
-                raw_btn_text = "Участвую"
-                if 'button_text' in giveaway.keys() and giveaway['button_text']:
-                    raw_btn_text = giveaway['button_text']
-                    
-                base_text = raw_btn_text.split(" (")[0]
-                new_btn_text = f"{base_text} ({count})"
-                
-                # Reconstruct the keyboard from scratch to guarantee update
-                new_kb = [[InlineKeyboardButton(text=new_btn_text, callback_data=f"participate_{giveaway_id}")]]
-                
-                # Add share button if we can determine the channel URL
-                try:
-                    chat = await bot.get_chat(giveaway['publish_channel_id'])
-                    if chat.username:
-                        post_url = f"https://t.me/{chat.username}/{giveaway['publish_message_id']}"
-                    else:
-                        invite_link = await bot.export_chat_invite_link(giveaway['publish_channel_id'])
-                        post_url = f"{invite_link}/{giveaway['publish_message_id']}"
-                    
-                    share_url = f"https://t.me/share/url?text=Участвуй в розыгрыше!&url={post_url}"
-                    new_kb.append([InlineKeyboardButton(text="🚀 Поделиться розыгрышем", url=share_url)])
-                except Exception as e:
-                    print(f"DEBUG: Could not recreate share button: {e}")
-                        
-                markup = InlineKeyboardMarkup(inline_keyboard=new_kb)
-                
-                # Only try to update if it's the official channel post
-                if 'publish_message_id' in giveaway.keys() and giveaway['publish_message_id']:
-                    await bot.edit_message_reply_markup(
-                        chat_id=giveaway['publish_channel_id'],
-                        message_id=giveaway['publish_message_id'],
-                        reply_markup=markup
-                    )
-            except Exception as e:
-                print(f"DEBUG: Could not update participant count on button: {e}")
-                
         else:
             await callback.answer("😎 Проверка пройдена! Ты уже числишься в списках этого розыгрыша.", show_alert=True)
             
