@@ -89,18 +89,21 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
                 not_subscribed.append(channel)
                 
         if not_subscribed:
-            text = "🚫 Вы не подписаны на следующие каналы:\n\n"
-            for ch in not_subscribed:
+            text = "🚫 Нет подписки на:\n"
+            for ch in not_subscribed[:3]: # limit to 3 to prevent length errors
                 try:
                     chat = await bot.get_chat(ch)
-                    if chat.username:
-                        text += f"👉 @{chat.username}\n"
-                    else:
-                         text += f"👉 {chat.title}\n"
+                    name = chat.username if chat.username else chat.title
+                    text += f"👉 {name}\n"
                 except:
                     text += f"👉 {ch}\n"
+            
+            if len(not_subscribed) > 3:
+                text += f"\n...и еще {len(not_subscribed)-3} канал(ов)\n"
                     
-            text += "\nПодпишитесь и нажмите кнопку снова!"
+            text += "\nПодпишись и нажми кнопку снова!"
+            if len(text) > 195:
+                text = text[:195] + "..."
             await callback.answer(text, show_alert=True)
             return
 
@@ -113,7 +116,12 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
             try:
                 count = await db.get_participants_count(giveaway_id)
                 # Keep the original button text base but append the count
-                base_text = giveaway.get('button_text', "Участвую").split(" (")[0]
+                # sqlite3.Row does not support .get(), so access keys safely
+                raw_btn_text = "Участвую"
+                if 'button_text' in giveaway.keys() and giveaway['button_text']:
+                    raw_btn_text = giveaway['button_text']
+                    
+                base_text = raw_btn_text.split(" (")[0]
                 new_btn_text = f"{base_text} ({count})"
                 
                 # Reconstruct the keyboard with the Share button if it existed
@@ -137,7 +145,7 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
                 markup = InlineKeyboardMarkup(inline_keyboard=new_kb)
                 
                 # Only try to update if it's the official channel post
-                if giveaway.get('publish_message_id'):
+                if 'publish_message_id' in giveaway.keys() and giveaway['publish_message_id']:
                     await bot.edit_message_reply_markup(
                         chat_id=giveaway['publish_channel_id'],
                         message_id=giveaway['publish_message_id'],
