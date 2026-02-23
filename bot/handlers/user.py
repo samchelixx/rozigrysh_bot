@@ -1,5 +1,5 @@
 from aiogram import Router, F, types, Bot
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, CommandObject
 import asyncio
 from bot.database.core import db
 from bot.utils import check_subscription
@@ -7,8 +7,43 @@ from bot.utils import check_subscription
 router = Router()
 
 @router.message(CommandStart())
-async def cmd_start(message: types.Message):
+async def cmd_start(message: types.Message, command: CommandObject):
     await db.create_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
+    
+    args = command.args
+    if args and args.startswith("result_"):
+        try:
+            giveaway_id = int(args.split("_")[1])
+            giveaway = await db.get_giveaway(giveaway_id)
+            
+            if not giveaway:
+                await message.answer("Розыгрыш не найден.")
+                return
+                
+            participants_count = await db.get_participants_count(giveaway_id)
+            winners = await db.get_winners(giveaway_id)
+            
+            winners_names = [f"@{w['username']}" if w['username'] else w['full_name'] for w in winners]
+            
+            if not winners:
+                winners_text = "Победители еще не определены."
+            else:
+                winners_text = "Победители:\n" + "\n".join([f"🥇 {name}" for name in winners_names])
+                
+            text = (
+                f"📊 <b>ИТОГИ РОЗЫГРЫША #{giveaway_id}</b>\n\n"
+                f"👥 Всего участников: {participants_count}\n"
+                f"🏆 <b>{winners_text}</b>\n\n"
+                f"🔒 <i>Все победители были выбраны случайным образом (рандомайзером).</i>"
+            )
+            
+            await message.answer(text, parse_mode="HTML")
+            return
+        except Exception as e:
+            print(f"ERROR deep link result: {e}")
+            await message.answer("Ошибка при загрузке результатов.")
+            return
+
     await message.answer(
         "👋 <b>Привет, кибер-странник!</b> 🌌\n\n"
         "Я бот для проведения розыгрышей. Следи за новостями в каналах и жми кнопки участия!\n"

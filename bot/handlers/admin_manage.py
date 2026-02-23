@@ -438,8 +438,12 @@ async def publish_results(callback: types.CallbackQuery, bot: Bot):
                 if giveaway['publish_message_id']:
                     try:
                         print(f"DEBUG: Replacing button for msg {giveaway['publish_message_id']}")
+                        bot_info = await bot.me()
+                        bot_username = bot_info.username
+                        url = f"https://t.me/{bot_username}?start=result_{giveaway_id}"
+                        
                         kb_results = InlineKeyboardMarkup(inline_keyboard=[[
-                            InlineKeyboardButton(text="🏆 Проверить результаты", callback_data=f"check_results_{giveaway_id}")
+                            InlineKeyboardButton(text="🏆 Проверить результаты", url=url)
                         ]])
                         await bot.edit_message_reply_markup(
                             chat_id=giveaway['publish_channel_id'], 
