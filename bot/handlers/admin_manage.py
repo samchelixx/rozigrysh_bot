@@ -434,17 +434,20 @@ async def publish_results(callback: types.CallbackQuery, bot: Bot):
                 await bot.send_message(chat_id=giveaway['publish_channel_id'], text=result_text)
                 print(f"DEBUG: Results posted to {giveaway['publish_channel_id']}")
                 
-                # Remove button from original post
+                # Remove button from original post and replace with Results button
                 if giveaway['publish_message_id']:
                     try:
-                        print(f"DEBUG: Removing button from msg {giveaway['publish_message_id']}")
+                        print(f"DEBUG: Replacing button for msg {giveaway['publish_message_id']}")
+                        kb_results = InlineKeyboardMarkup(inline_keyboard=[[
+                            InlineKeyboardButton(text="🏆 Проверить результаты", callback_data=f"check_results_{giveaway_id}")
+                        ]])
                         await bot.edit_message_reply_markup(
                             chat_id=giveaway['publish_channel_id'], 
                             message_id=giveaway['publish_message_id'], 
-                            reply_markup=None
+                            reply_markup=kb_results
                         )
                     except Exception as e:
-                         print(f"DEBUG: Failed to remove button: {e}")
+                         print(f"DEBUG: Failed to replace button: {e}")
                     
                 await callback.message.edit_text(f"✅ Результаты опубликованы в канале!\n\n{winners_text}", reply_markup=None)
                 

@@ -1,5 +1,6 @@
 from aiogram import Router, F, types, Bot
 from aiogram.filters import CommandStart
+import asyncio
 from bot.database.core import db
 from bot.utils import check_subscription
 
@@ -31,6 +32,14 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
         if not giveaway or giveaway['status'] != 'active':
             await callback.answer("⏳ Розыгрыш уже завершен или не найден.", show_alert=True)
             return
+
+        # Visual delay for participation
+        await callback.answer() # Ack the callback so button stops spinning
+        try:
+            status_msg = await bot.send_message(user_id, "⏳ <b>Проверяем выполнение условий...</b> 🔍", parse_mode="HTML")
+            await asyncio.sleep(1.5) # Simulated delay
+        except Exception:
+            status_msg = None
 
         # Check subscriptions
         channels = giveaway['channel_ids'].split(',')
@@ -66,17 +75,65 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
                 except:
                     text += f"👉 Канал\n"
                     
-            text += "\nПодпишись и нажми кнопку снова!"
-            await callback.answer(text, show_alert=True)
+            text += "\nПодпишись и нажми кнопку участия снова!"
+            
+            if status_msg:
+                await status_msg.edit_text(text, disable_web_page_preview=True)
+            else:
+                await bot.send_message(user_id, text, disable_web_page_preview=True)
             return
 
         # Subscribe success
         result = await db.add_participant(user_id, giveaway_id)
         if result:
-            await callback.answer("✅ Ты участвуешь! Жди результатов. 🍀", show_alert=True)
+            success_txt = "✅ <b>Условия выполнены!</b>\nТы участвуешь в розыгрыше. Жди результатов. 🍀"
+            if status_msg:
+                await status_msg.edit_text(success_txt)
+            else:
+                await bot.send_message(user_id, success_txt)
         else:
-            await callback.answer("😎 Ты уже участвуешь!", show_alert=True)
+            already_txt = "😎 <b>Проверка пройдена!</b>\nТы уже числишься в списках участников этого розыгрыша."
+            if status_msg:
+                await status_msg.edit_text(already_txt)
+            else:
+                await bot.send_message(user_id, already_txt)
             
     except Exception as e:
         print(f"ERROR in participate: {e}")
-        await callback.answer("❌ Произошла ошибка. Скажи админу проверить консоль.", show_alert=True)
+        try:
+             await callback.answer("❌ Произошла ошибка. Скажи админу проверить консоль.", show_alert=True)
+        except:
+             pass
+
+@router.callback_query(F.data.startswith("check_results_"))
+async def check_results(callback: types.CallbackQuery):
+    try:
+        giveaway_id = int(callback.data.split("_")[2])
+        giveaway = await db.get_giveaway(giveaway_id)
+        
+        if not giveaway:
+            await callback.answer("Розыгрыш не найден.", show_alert=True)
+            return
+            
+        participants_count = await db.get_participants_count(giveaway_id)
+        winners = await db.get_winners(giveaway_id)
+        
+        winners_names = [f"@{w['username']}" if w['username'] else w['full_name'] for w in winners]
+        
+        if not winners:
+            winners_text = "Победители еще не определены."
+        else:
+            winners_text = "Победители: " + ", ".join(winners_names)
+            
+        text = (
+            f"📊 ИТОГИ РОЗЫГРЫША #{giveaway_id}\n\n"
+            f"👥 Всего участников: {participants_count}\n"
+            f"🏆 {winners_text}\n\n"
+            f"🔒 Все победители были выбраны случайным образом (рандомайзером)."
+        )
+        
+        await callback.answer(text, show_alert=True)
+    except Exception as e:
+        print(f"ERROR in check_results: {e}")
+        await callback.answer("Ошибка при загрузке результатов.", show_alert=True)
+
