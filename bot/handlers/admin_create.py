@@ -210,8 +210,11 @@ async def publish_giveaway(callback: types.CallbackQuery, state: FSMContext, bot
     )
     
     # Construct keyboard
+    base_btn_text = data.get('button_text', 'Участвую')
+    button_txt_with_count = f"{base_btn_text} (0)"
+    
     kb = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text=data.get('button_text', "Участвую"), callback_data=f"participate_{giveaway_id}")
+        InlineKeyboardButton(text=button_txt_with_count, callback_data=f"participate_{giveaway_id}")
     ]])
 
     # Publish

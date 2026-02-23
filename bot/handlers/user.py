@@ -69,12 +69,8 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
             return
 
         # Visual delay for participation
-        await callback.answer() # Ack the callback so button stops spinning
-        try:
-            status_msg = await bot.send_message(user_id, "⏳ <b>Проверяем выполнение условий...</b> 🔍", parse_mode="HTML")
-            await asyncio.sleep(1.5) # Simulated delay
-        except Exception:
-            status_msg = None
+        await callback.answer("⏳ Проверяем выполнение условий...", show_alert=False)
+        await asyncio.sleep(1.5) # Simulated delay
 
         # Check subscriptions
         channels = giveaway['channel_ids'].split(',')
@@ -84,10 +80,6 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
             channel = channel.strip()
             if not channel: continue
             
-            # channel is now likely an ID string inside DB
-            print(f"DEBUG: Checking sub for {channel}")
-            
-            # Convert to int if it looks like one, otherwise str
             try:
                 chan_id = int(channel)
             except ValueError:
@@ -98,40 +90,65 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
                 not_subscribed.append(channel)
                 
         if not_subscribed:
-            text = "🚫 <b>Ты не подписан на каналы:</b>\n\n"
+            text = "🚫 Вы не подписаны на следующие каналы:\n\n"
             for ch in not_subscribed:
-                # Try to get chat to show link
                 try:
                     chat = await bot.get_chat(ch)
                     if chat.username:
-                        text += f"👉 <a href='https://t.me/{chat.username}'>{chat.title}</a>\n"
+                        text += f"👉 @{chat.username}\n"
                     else:
                          text += f"👉 {chat.title}\n"
                 except:
                     text += f"👉 Канал\n"
                     
-            text += "\nПодпишись и нажми кнопку участия снова!"
-            
-            if status_msg:
-                await status_msg.edit_text(text, disable_web_page_preview=True)
-            else:
-                await bot.send_message(user_id, text, disable_web_page_preview=True)
+            text += "\nПодпишитесь и нажмите кнопку снова!"
+            await callback.answer(text, show_alert=True)
             return
 
         # Subscribe success
-        result = await db.add_participant(user_id, giveaway_id)
-        if result:
-            success_txt = "✅ <b>Условия выполнены!</b>\nТы участвуешь в розыгрыше. Жди результатов. 🍀"
-            if status_msg:
-                await status_msg.edit_text(success_txt)
-            else:
-                await bot.send_message(user_id, success_txt)
+        is_new_participant = await db.add_participant(user_id, giveaway_id)
+        if is_new_participant:
+            await callback.answer("✅ Условия выполнены! Ты участвуешь в розыгрыше. 🍀", show_alert=True)
+            
+            # --- Update Participant Count on Button ---
+            try:
+                count = await db.get_participants_count(giveaway_id)
+                # Keep the original button text base but append the count
+                base_text = giveaway.get('button_text', "Участвую").split(" (")[0]
+                new_btn_text = f"{base_text} ({count})"
+                
+                # Reconstruct the keyboard with the Share button if it existed
+                new_kb = []
+                if callback.message.reply_markup and callback.message.reply_markup.inline_keyboard:
+                    orig_kb = callback.message.reply_markup.inline_keyboard
+                    for row in orig_kb:
+                        new_row = []
+                        for btn in row:
+                            if btn.callback_data == callback.data:
+                                # Update our own participate button
+                                new_row.append(InlineKeyboardButton(text=new_btn_text, callback_data=callback.data))
+                            else:
+                                # Keep Share button or any other original buttons intact
+                                if btn.url:
+                                    new_row.append(InlineKeyboardButton(text=btn.text, url=btn.url))
+                                elif btn.callback_data:
+                                    new_row.append(InlineKeyboardButton(text=btn.text, callback_data=btn.callback_data))
+                        new_kb.append(new_row)
+                        
+                markup = InlineKeyboardMarkup(inline_keyboard=new_kb)
+                
+                # Only try to update if it's the official channel post
+                if giveaway.get('publish_message_id'):
+                    await bot.edit_message_reply_markup(
+                        chat_id=giveaway['publish_channel_id'],
+                        message_id=giveaway['publish_message_id'],
+                        reply_markup=markup
+                    )
+            except Exception as e:
+                print(f"DEBUG: Could not update participant count on button: {e}")
+                
         else:
-            already_txt = "😎 <b>Проверка пройдена!</b>\nТы уже числишься в списках участников этого розыгрыша."
-            if status_msg:
-                await status_msg.edit_text(already_txt)
-            else:
-                await bot.send_message(user_id, already_txt)
+            await callback.answer("😎 Проверка пройдена! Ты уже числишься в списках этого розыгрыша.", show_alert=True)
             
     except Exception as e:
         print(f"ERROR in participate: {e}")
