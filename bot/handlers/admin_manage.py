@@ -197,12 +197,7 @@ async def pick_random_winner(callback: types.CallbackQuery, bot: Bot):
     await callback.answer(f"🎲 Случайный победитель: {name}", show_alert=True)
     await show_participants_menu(callback)
 
-@router.callback_query(F.data.startswith("finish_gw_"))
-async def finish_giveaway_publish(callback: types.CallbackQuery, bot: Bot):
-    # Just redirect to our main publish_results handler
-    gw_id = int(callback.data.split("_")[2])
-    callback.data = f"publish_results_{gw_id}"
-    await publish_results(callback, bot)
+
 
 
 # --- ⚙️ Управление (Edit/Delete) ---
@@ -379,6 +374,7 @@ async def pick_manual_finish(message: types.Message, state: FSMContext, bot: Bot
 
 
 @router.callback_query(F.data.startswith("publish_results_"))
+@router.callback_query(F.data.startswith("finish_gw_"))
 async def publish_results(callback: types.CallbackQuery, bot: Bot):
     try:
         print(f"DEBUG: publish_results called for {callback.data}")
