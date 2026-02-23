@@ -11,7 +11,7 @@ async def cmd_start(message: types.Message, command: CommandObject):
     await db.create_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
     
     args = command.args
-    if args and args.startswith("result_"):
+    if args and args.startswith("res_"):
         try:
             giveaway_id = int(args.split("_")[1])
             giveaway = await db.get_giveaway(giveaway_id)

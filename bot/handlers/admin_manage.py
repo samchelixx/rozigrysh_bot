@@ -402,7 +402,7 @@ async def publish_results(callback: types.CallbackQuery, bot: Bot):
                 )
                 bot_info = await bot.me()
                 bot_username = bot_info.username
-                url = f"https://t.me/{bot_username}?start=result_{giveaway_id}"
+                url = f"https://t.me/{bot_username}?start=res_{giveaway_id}"
                 
                 kb_results = InlineKeyboardMarkup(inline_keyboard=[[
                     InlineKeyboardButton(text="🏆 Проверить результаты", url=url)
