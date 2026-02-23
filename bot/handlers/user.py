@@ -124,23 +124,22 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
                 base_text = raw_btn_text.split(" (")[0]
                 new_btn_text = f"{base_text} ({count})"
                 
-                # Reconstruct the keyboard with the Share button if it existed
-                new_kb = []
-                if callback.message.reply_markup and callback.message.reply_markup.inline_keyboard:
-                    orig_kb = callback.message.reply_markup.inline_keyboard
-                    for row in orig_kb:
-                        new_row = []
-                        for btn in row:
-                            if btn.callback_data == callback.data:
-                                # Update our own participate button
-                                new_row.append(InlineKeyboardButton(text=new_btn_text, callback_data=callback.data))
-                            else:
-                                # Keep Share button or any other original buttons intact
-                                if btn.url:
-                                    new_row.append(InlineKeyboardButton(text=btn.text, url=btn.url))
-                                elif btn.callback_data:
-                                    new_row.append(InlineKeyboardButton(text=btn.text, callback_data=btn.callback_data))
-                        new_kb.append(new_row)
+                # Reconstruct the keyboard from scratch to guarantee update
+                new_kb = [[InlineKeyboardButton(text=new_btn_text, callback_data=f"participate_{giveaway_id}")]]
+                
+                # Add share button if we can determine the channel URL
+                try:
+                    chat = await bot.get_chat(giveaway['publish_channel_id'])
+                    if chat.username:
+                        post_url = f"https://t.me/{chat.username}/{giveaway['publish_message_id']}"
+                    else:
+                        invite_link = await bot.export_chat_invite_link(giveaway['publish_channel_id'])
+                        post_url = f"{invite_link}/{giveaway['publish_message_id']}"
+                    
+                    share_url = f"https://t.me/share/url?text=Участвуй в розыгрыше!&url={post_url}"
+                    new_kb.append([InlineKeyboardButton(text="🚀 Поделиться розыгрышем", url=share_url)])
+                except Exception as e:
+                    print(f"DEBUG: Could not recreate share button: {e}")
                         
                 markup = InlineKeyboardMarkup(inline_keyboard=new_kb)
                 
