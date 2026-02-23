@@ -1,5 +1,5 @@
 from aiogram import Router, F, types, Bot
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot.states import GiveawayCreation
@@ -13,7 +13,38 @@ router = Router()
 router.message.filter(F.from_user.id.in_(ADMIN_IDS))
 
 @router.message(Command("start"))
-async def cmd_start(message: types.Message):
+async def cmd_start(message: types.Message, command: CommandObject):
+    args = command.args
+    if args and args.startswith("res_"):
+        try:
+            giveaway_id = int(args.split("_")[1])
+            giveaway = await db.get_giveaway(giveaway_id)
+            
+            if giveaway:
+                participants_count = await db.get_participants_count(giveaway_id)
+                winners = await db.get_winners(giveaway_id)
+                
+                winners_names = [f"@{w['username']}" if w['username'] else w['full_name'] for w in winners]
+                
+                if not winners:
+                    winners_text = "Победители еще не определены."
+                else:
+                    winners_text = "Победители:\n" + "\n".join([f"🥇 {name}" for name in winners_names])
+                    
+                text = (
+                    f"📊 <b>ИТОГИ РОЗЫГРЫША #{giveaway_id}</b>\n\n"
+                    f"👥 Всего участников: {participants_count}\n"
+                    f"🏆 <b>{winners_text}</b>\n\n"
+                    f"🔒 <i>Все победители были выбраны случайным образом (рандомайзером).</i>"
+                )
+                
+                await message.answer(text, parse_mode="HTML")
+            else:
+                await message.answer("Розыгрыш не найден.")
+        except Exception as e:
+            print(f"ERROR admin deep link result: {e}")
+            await message.answer("Ошибка при загрузке результатов.")
+            
     await message.answer("🪐 Привет, Админ! Готов к запуску розыгрышей?", reply_markup=main_admin_keyboard())
 
 @router.message(F.text == "🎁 Создать розыгрыш")
