@@ -199,37 +199,10 @@ async def pick_random_winner(callback: types.CallbackQuery, bot: Bot):
 
 @router.callback_query(F.data.startswith("finish_gw_"))
 async def finish_giveaway_publish(callback: types.CallbackQuery, bot: Bot):
+    # Just redirect to our main publish_results handler
     gw_id = int(callback.data.split("_")[2])
-    winners = await db.get_winners(gw_id)
-    
-    if not winners:
-        await callback.answer("❌ Сначала выбери победителей!", show_alert=True)
-        return
-        
-    gw = await db.get_giveaway(gw_id)
-    
-    winners_text = "\n".join([f"🥇 {w['full_name'] or 'Пользователь'}" for w in winners])
-    text = (
-        f"🏆 <b>Итоги розыгрыша!</b>\n\n"
-        f"{gw['description']}\n\n"
-        f"<b>Победители:</b>\n{winners_text}\n\n"
-        f"Поздравляем! 🥳"
-    )
-    
-    try:
-        if gw['publish_channel_id']:
-            await bot.send_message(chat_id=gw['publish_channel_id'], text=text)
-            # Remove button from original post if possible
-            if gw['publish_message_id']:
-                try:
-                    await bot.edit_message_reply_markup(chat_id=gw['publish_channel_id'], message_id=gw['publish_message_id'], reply_markup=None)
-                except:
-                    pass
-        
-        await callback.answer("✅ Результаты опубликованы!", show_alert=True)
-        await callback.message.edit_text(f"✅ Розыгрыш #{gw_id} завершен.\n\n{winners_text}")
-    except Exception as e:
-        await callback.answer(f"Ошибка публикации: {e}", show_alert=True)
+    callback.data = f"publish_results_{gw_id}"
+    await publish_results(callback, bot)
 
 
 # --- ⚙️ Управление (Edit/Delete) ---
