@@ -18,6 +18,9 @@ from bot.handlers import admin_create, admin_manage, user, admin_channels
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 async def update_counters_loop(bot: Bot):
+    await asyncio.sleep(5) # Give the bot time to fully start
+    last_counts = {} # Cache to prevent spamming API and save memory/CPU
+    
     while True:
         try:
             giveaways = await db.get_active_giveaways()
@@ -27,6 +30,12 @@ async def update_counters_loop(bot: Bot):
                     continue
                     
                 count = await db.get_participants_count(giveaway_id)
+                
+                # Check cache: don't update if nothing changed (saves memory & avoids Rate Limits)
+                if last_counts.get(giveaway_id) == count:
+                    continue
+                    
+                last_counts[giveaway_id] = count
                 
                 raw_btn_text = "Участвую"
                 if 'button_text' in giveaway.keys() and giveaway['button_text']:
@@ -57,9 +66,10 @@ async def update_counters_loop(bot: Bot):
                         message_id=giveaway['publish_message_id'],
                         reply_markup=markup
                     )
+                    logging.info(f"Updated counter for Giveaway #{giveaway_id} to {count}")
                 except Exception as e:
                     # Ignore "message is not modified" errors
-                    if "is not modified" not in str(e).lower():
+                    if "is not modified" not in str(e).lower() and "message to edit not found" not in str(e).lower():
                         logging.error(f"Failed to update counter for GW {giveaway_id}: {e}")
                         
         except Exception as e:
