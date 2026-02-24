@@ -85,38 +85,52 @@ async def list_participants_menu(message: types.Message):
     else:
         await message.answer("👥 Выбери розыгрыш для просмотра участников и выбора победителя:", reply_markup=kb)
 
-@router.callback_query(F.data.startswith("part_gw_"))
-async def show_participants_menu(callback: types.CallbackQuery):
+async def render_participant_page(callback: types.CallbackQuery, gw_id: int, page: int):
     try:
-        gw_id = int(callback.data.split("_")[2])
         participants = await db.get_participants(gw_id)
         
         text = f"👥 <b>Участники розыгрыша #{gw_id} ({len(participants)} чел.):</b>\n"
         
         kb_rows = []
         
-        # Show last 50 participants as buttons
-        display_participants = participants[-50:] 
+        per_page = 25
+        total_pages = max(1, (len(participants) + per_page - 1) // per_page)
+        page = max(0, min(page, total_pages - 1))
+        
+        display_participants = participants[page * per_page : (page + 1) * per_page]
         
         for p in display_participants:
-            # p is from users table (u.* via join), so use p['id']
-            # Also p has username and full_name
             name = p['full_name'] or p['username'] or str(p['id'])
-            # Button to pick this specific user
-            kb_rows.append([InlineKeyboardButton(text=f"👤 {name}", callback_data=f"pick_winner_{gw_id}_{p['id']}")])
+            kb_rows.append([InlineKeyboardButton(text=f"👤 {name}", callback_data=f"pick_winner_{gw_id}_{p['id']}_{page}")])
 
-        # Navigation buttons at top/bottom
+        # Pagination controls
+        nav_row = []
+        if page > 0:
+            nav_row.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"part_gw_{gw_id}_{page-1}"))
+        if page < total_pages - 1:
+            nav_row.append(InlineKeyboardButton(text="Вперед ➡️", callback_data=f"part_gw_{gw_id}_{page+1}"))
+            
+        if nav_row:
+            kb_rows.append(nav_row)
+
         kb_rows.insert(0, [InlineKeyboardButton(text="🎲 Случайный победитель", callback_data=f"pick_random_{gw_id}")])
         kb_rows.append([InlineKeyboardButton(text="📢 Опубликовать результаты", callback_data=f"finish_gw_{gw_id}")])
         kb_rows.append([InlineKeyboardButton(text="🔙 К списку", callback_data="back_to_list_part")])
         
         kb = InlineKeyboardMarkup(inline_keyboard=kb_rows)
         
-        msg_text = text + "\n👇 Нажми на участника, чтобы выбрать победителем (или выбери случайного)."
+        msg_text = text + f"\n📄 Страница {page + 1} из {total_pages}\n👇 Нажми на участника, чтобы выбрать победителем (или выбери случайного)."
         await callback.message.edit_text(msg_text, reply_markup=kb, parse_mode="HTML")
     except Exception as e:
-        print(f"ERROR in show_participants_menu: {e}")
+        print(f"ERROR in render_participant_page: {e}")
         await callback.answer(f"Ошибка: {e}", show_alert=True)
+
+@router.callback_query(F.data.startswith("part_gw_"))
+async def show_participants_menu(callback: types.CallbackQuery):
+    parts = callback.data.split("_")
+    gw_id = int(parts[2])
+    page = int(parts[3]) if len(parts) > 3 else 0
+    await render_participant_page(callback, gw_id, page)
 
 @router.callback_query(F.data == "back_to_list_part")
 async def back_to_list_part(callback: types.CallbackQuery):
@@ -125,10 +139,10 @@ async def back_to_list_part(callback: types.CallbackQuery):
 
 @router.callback_query(F.data.startswith("pick_winner_"))
 async def pick_specific_winner(callback: types.CallbackQuery):
-    # data: pick_winner_GWID_UID
     parts = callback.data.split("_")
     gw_id = int(parts[2])
     user_id = int(parts[3])
+    page = int(parts[4]) if len(parts) > 4 else 0
     
     await db.set_winner(user_id, gw_id)
     
@@ -136,8 +150,7 @@ async def pick_specific_winner(callback: types.CallbackQuery):
     name = user['full_name'] if user else str(user_id)
     
     await callback.answer(f"🏆 {name} выбран победителем!", show_alert=True)
-    # Refresh menu
-    await show_participants_menu(callback)
+    await render_participant_page(callback, gw_id, page)
 
 @router.callback_query(F.data.startswith("pick_random_"))
 async def pick_random_winner(callback: types.CallbackQuery, bot: Bot):
@@ -195,7 +208,7 @@ async def pick_random_winner(callback: types.CallbackQuery, bot: Bot):
     name = valid_winner['full_name'] or valid_winner['username'] or str(valid_winner['id'])
     
     await callback.answer(f"🎲 Случайный победитель: {name}", show_alert=True)
-    await show_participants_menu(callback)
+    await render_participant_page(callback, gw_id, 0)
 
 
 
