@@ -18,6 +18,10 @@ async def prepare_channel_id(bot: Bot, channel_input: str):
     # Handle pure usernames without @
     if not channel_input.startswith("@") and not channel_input.startswith("-") and not channel_input.isdigit():
         channel_input = f"@{channel_input}"
+        
+    # Handle pure numeric IDs that miss the -100 prefix for channels
+    if channel_input.isdigit():
+        channel_input = f"-100{channel_input}"
     
     print(f"DEBUG: Resolved input to '{channel_input}', calling get_chat...")
     try:

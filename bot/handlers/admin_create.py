@@ -145,19 +145,24 @@ async def process_button_text(message: types.Message, state: FSMContext):
 async def process_publish_channel(message: types.Message, state: FSMContext, bot: Bot):
     channel_input = message.text
     
+    from bot.utils import prepare_channel_id, is_bot_admin
+
     # Extract ID if selected from menu: "Title (ID: -123)"
     if "(ID: " in channel_input and channel_input.endswith(")"):
-        channel_id = channel_input.split("(ID: ")[1][:-1]
-    else:
-        channel_id = channel_input
+        channel_input = channel_input.split("(ID: ")[1][:-1]
     
     # Verify access
-    try:
-        chat = await bot.get_chat(channel_id)
-        channel_id = chat.id 
-    except Exception:
-        await message.answer("❌ Не могу найти этот канал или нет доступа. Проверь права админа.")
+    chat_id, chat = await prepare_channel_id(bot, channel_input)
+    
+    if not chat_id:
+        await message.answer("❌ Не могу найти этот канал. Убедитесь, что ссылка, юзернейм или ID верные.")
         return
+        
+    if not await is_bot_admin(bot, chat_id):
+        await message.answer("❌ Я не администратор в этом канале! Выдайте мне права администратора.")
+        return
+        
+    channel_id = chat_id
 
     await state.update_data(publish_channel_id=channel_id)
     
