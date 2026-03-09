@@ -11,6 +11,11 @@ async def prepare_channel_id(bot: Bot, channel_input: str):
     
     # Handle links like https://t.me/username
     if "t.me/" in channel_input:
+        if "+" in channel_input:
+            # It's an invite link (e.g. t.me/+AbcDef), which aiogram get_chat cannot resolve
+            # We must fail gracefully instead of sending a bad request
+            return None, None
+            
         channel_input = channel_input.split("t.me/")[-1].split("/")[0]
         if not channel_input.startswith("@") and not channel_input.startswith("-"):
              channel_input = f"@{channel_input}"
@@ -22,10 +27,15 @@ async def prepare_channel_id(bot: Bot, channel_input: str):
     # Handle pure numeric IDs that miss the -100 prefix for channels
     if channel_input.isdigit():
         channel_input = f"-100{channel_input}"
+        
+    # Cast numeric IDs to integers to prevent Telegram API Bad Request errors
+    chat_id_to_fetch = channel_input
+    if (channel_input.startswith("-") and channel_input[1:].isdigit()) or channel_input.isdigit():
+        chat_id_to_fetch = int(channel_input)
     
     print(f"DEBUG: Resolved input to '{channel_input}', calling get_chat...")
     try:
-        chat = await bot.get_chat(channel_input)
+        chat = await bot.get_chat(chat_id_to_fetch)
         print(f"DEBUG: get_chat success: {chat.id}, {chat.title}")
         return chat.id, chat
     except Exception as e:
