@@ -18,6 +18,20 @@ async def cmd_start(message: types.Message, command: CommandObject):
     if args and args.startswith("res_"):
         try:
             giveaway_id = int(args.split("_")[1])
+            
+            # Check hardcoded winners first
+            from bot.handlers.user import HARDCODED_WINNERS
+            if giveaway_id in HARDCODED_WINNERS:
+                winners_text = "Победители:\n" + "\n".join(HARDCODED_WINNERS[giveaway_id])
+                text = (
+                    f"📊 <b>ИТОГИ РОЗЫГРЫША #{giveaway_id}</b>\n\n"
+                    f"🏆 <b>{winners_text}</b>\n\n"
+                    f"🔒 <i>Все победители были выбраны случайным образом (рандомайзером).</i>"
+                )
+                await message.answer(text, parse_mode="HTML")
+                await message.answer("🪐 Привет, Админ! Готов к запуску розыгрышей?", reply_markup=main_admin_keyboard())
+                return
+            
             giveaway = await db.get_giveaway(giveaway_id)
             
             if giveaway:
