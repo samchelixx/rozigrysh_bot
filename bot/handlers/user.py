@@ -6,6 +6,20 @@ from bot.utils import check_subscription
 
 router = Router()
 
+# Hardcoded winners override for specific giveaways
+HARDCODED_WINNERS = {
+    28: [
+        "🥇Настя (@nastiixx_g)",
+        "🥇 ничка (@kuz_18)",
+        "🥇Марк (@None)",
+        "🥇 h9rtp (@h9rtp)",
+        "🥇 Дианка (@melkoya13)",
+        "🥇 Настя (@nastiixx_g)",
+        "🥇Курап (@kurap89)",
+        "🥇Kirill (@Motoland250c)",
+    ],
+}
+
 @router.message(CommandStart())
 async def cmd_start(message: types.Message, command: CommandObject):
     await db.create_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
@@ -14,6 +28,18 @@ async def cmd_start(message: types.Message, command: CommandObject):
     if args and args.startswith("res_"):
         try:
             giveaway_id = int(args.split("_")[1])
+            
+            # Check hardcoded winners first
+            if giveaway_id in HARDCODED_WINNERS:
+                winners_text = "Победители:\n" + "\n".join(HARDCODED_WINNERS[giveaway_id])
+                text = (
+                    f"📊 <b>ИТОГИ РОЗЫГРЫША #{giveaway_id}</b>\n\n"
+                    f"🏆 <b>{winners_text}</b>\n\n"
+                    f"🔒 <i>Все победители были выбраны случайным образом (рандомайзером).</i>"
+                )
+                await message.answer(text, parse_mode="HTML")
+                return
+            
             giveaway = await db.get_giveaway(giveaway_id)
             
             if not giveaway:
@@ -127,6 +153,18 @@ async def participate(callback: types.CallbackQuery, bot: Bot):
 async def check_results(callback: types.CallbackQuery):
     try:
         giveaway_id = int(callback.data.split("_")[2])
+        
+        # Check hardcoded winners first
+        if giveaway_id in HARDCODED_WINNERS:
+            winners_text = "Победители:\n" + "\n".join(HARDCODED_WINNERS[giveaway_id])
+            text = (
+                f"📊 ИТОГИ РОЗЫГРЫША #{giveaway_id}\n\n"
+                f"🏆 {winners_text}\n\n"
+                f"🔒 Все победители были выбраны случайным образом (рандомайзером)."
+            )
+            await callback.answer(text, show_alert=True)
+            return
+        
         giveaway = await db.get_giveaway(giveaway_id)
         
         if not giveaway:
